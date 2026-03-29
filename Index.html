@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local Wallet App</title>
+  <style>
+    body { font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333; text-align: center; }
+    input, button { padding: 10px; margin: 10px; width: 80%; border-radius: 5px; border: 1px solid #ccc; }
+    button { background-color: #4CAF50; color: white; cursor: pointer; }
+    .hidden { display: none; }
+    .container { margin: 20px; }
+  </style>
+</head>
+<body>
+
+<div id="signup-container" class="container">
+  <h2>Create Account</h2>
+  <input id="name" placeholder="Full Name" required><br>
+  <input id="phone" placeholder="Phone Number" required><br>
+  <input id="email" type="email" placeholder="Email" required><br>
+  <input id="pin" placeholder="Transfer PIN" required><br>
+  <input id="password" type="password" placeholder="Password" required><br>
+  <button onclick="signup()">Sign Up</button>
+  <p onclick="showLogin()">Already have an account? Login here</p>
+</div>
+
+<div id="login-container" class="container hidden">
+  <h2>Login</h2>
+  <input id="login-phone" placeholder="Phone Number"><br>
+  <input id="login-password" type="password" placeholder="Password"><br>
+  <button onclick="login()">Login</button>
+  <p onclick="showSignup()">Don't have an account? Sign up here</p>
+</div>
+
+<div id="dashboard-container" class="container hidden">
+  <h2>Welcome <span id="user-name"></span></h2>
+  <h3>Balance: $<span id="balance">0</span></h3>
+  <button onclick="showSend()">Send Money</button>
+  <button onclick="showWithdraw()">Withdraw Money</button>
+  <button onclick="showHistory()">View Transaction History</button>
+  <button onclick="logout()">Logout</button>
+
+  <!-- Send Money Form -->
+  <div id="send-container" class="hidden">
+    <h3>Send Money</h3>
+    <input id="send-phone" placeholder="Recipient Phone Number"><br>
+    <input id="send-amount" placeholder="Amount to Send"><br>
+    <input id="send-pin" placeholder="Enter Transfer PIN"><br>
+    <button onclick="sendMoney()">Send</button>
+  </div>
+
+  <!-- Withdraw Money Form -->
+  <div id="withdraw-container" class="hidden">
+    <h3>Withdraw Money</h3>
+    <input id="withdraw-amount" placeholder="Amount to Withdraw"><br>
+    <button onclick="withdrawMoney()">Withdraw</button>
+  </div>
+
+  <!-- Transaction History -->
+  <div id="history-container" class="hidden">
+    <h3>Transaction History</h3>
+    <div id="history"></div>
+  </div>
+</div>
+
+<script>
+  let currentUser = null;
+
+  function showLogin() {
+    document.getElementById('signup-container').classList.add('hidden');
+    document.getElementById('login-container').classList.remove('hidden');
+  }
+
+  function showSignup() {
+    document.getElementById('login-container').classList.add('hidden');
+    document.getElementById('signup-container').classList.remove('hidden');
+  }
+
+  function showDashboard() {
+    document.getElementById('signup-container').classList.add('hidden');
+    document.getElementById('login-container').classList.add('hidden');
+    document.getElementById('dashboard-container').classList.remove('hidden');
+    document.getElementById('user-name').textContent = currentUser.name;
+    document.getElementById('balance').textContent = currentUser.balance;
+  }
+
+  function signup() {
+    const user = {
+      name: document.getElementById('name').value,
+      phone: document.getElementById('phone').value,
+      email: document.getElementById('email').value,
+      pin: document.getElementById('pin').value,
+      password: document.getElementById('password').value,
+      balance: 5000,
+      transactions: []
+    };
+
+    localStorage.setItem(user.phone, JSON.stringify(user));
+    alert('Account Created Successfully!');
+    showLogin();
+  }
+
+  function login() {
+    const phone = document.getElementById('login-phone').value;
+    const password = document.getElementById('login-password').value;
+
+    const user = JSON.parse(localStorage.getItem(phone));
+
+    if (user && user.password === password) {
+      currentUser = user;
+      showDashboard();
+    } else {
+      alert('Invalid credentials!');
+    }
+  }
+
+  function logout() {
+    currentUser = null;
+    document.getElementById('dashboard-container').classList.add('hidden');
+    showLogin();
+  }
+
+  function showSend() {
+    document.getElementById('send-container').classList.remove('hidden');
+  }
+
+  function showWithdraw() {
+    document.getElementById('withdraw-container').classList.remove('hidden');
+  }
+
+  function showHistory() {
+    document.getElementById('history-container').classList.remove('hidden');
+    displayHistory();
+  }
+
+  function sendMoney() {
+    const recipientPhone = document.getElementById('send-phone').value;
+    const amount = parseInt(document.getElementById('send-amount').value);
+    const pin = document.getElementById('send-pin').value;
+
+    if (pin !== currentUser.pin) {
+      alert('Incorrect PIN');
+      return;
+    }
+
+    if (currentUser.balance < amount) {
+      alert('Insufficient Balance');
+      return;
+    }
+
+    const recipient = JSON.parse(localStorage.getItem(recipientPhone));
+
+    if (recipient) {
+      recipient.balance += amount;
+      currentUser.balance -= amount;
+
+      const date = new Date().toLocaleString();
+      currentUser.transactions.push(`Sent $${amount} to ${recipientPhone} on ${date}`);
+      recipient.transactions.push(`Received $${amount} from ${currentUser.phone} on ${date}`);
+
+      localStorage.setItem(currentUser.phone, JSON.stringify(currentUser));
+      localStorage.setItem(recipientPhone, JSON.stringify(recipient));
+
+      alert('Transfer Successful');
+      document.getElementById('balance').textContent = currentUser.balance;
+    } else {
+      alert('Recipient not found!');
+    }
+  }
+
+  function withdrawMoney() {
+    const amount = parseInt(document.getElementById('withdraw-amount').value);
+
+    if (currentUser.balance < amount) {
+      alert('Insufficient Balance');
+      return;
+    }
+
+    currentUser.balance -= amount;
+
+    const date = new Date().toLocaleString();
+    currentUser.transactions.push(`Withdrew $${amount} on ${date}`);
+
+    localStorage.setItem(currentUser.phone, JSON.stringify(currentUser));
+
+    alert('Withdrawal Successful');
+    document.getElementById('balance').textContent = currentUser.balance;
+  }
+
+  function displayHistory() {
+    const historyContainer = document.getElementById('history');
+    historyContainer.innerHTML = '';
+    currentUser.transactions.forEach(transaction => {
+      historyContainer.innerHTML += `<p>${transaction}</p>`;
+    });
+  }
+</script>
+
+</body>
+</html>
